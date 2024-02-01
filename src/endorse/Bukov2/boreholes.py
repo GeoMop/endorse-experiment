@@ -27,6 +27,20 @@ TODO:
 Point3d = Tuple[float, float, float]
 Box = Tuple[Point3d, Point3d]
 
+def direction_vector(y_phi, z_phi):
+    y_phi = y_phi / 180 * np.pi
+    z_phi = z_phi / 180 * np.pi
+    sy, cy = np.sin(y_phi), np.cos(y_phi)
+    sz, cz = np.sin(z_phi), np.cos(z_phi)
+    return np.array([cy * cz, sy * cz, sz])
+
+
+def direction_angles(unit_direction):
+    z_angle = np.arcsin(unit_direction[2])
+    y_angle = np.arcsin(unit_direction[1] / np.cos(z_angle))
+    return 180 * y_angle / np.pi, 180 * z_angle / np.pi
+
+
 @bcommon.memoize
 def _make_borehole_set(workdir, cfg) -> 'BoreholeSet':
     # Prepare BoreholeSet with simulation data loaded
@@ -237,7 +251,7 @@ class Lateral:
         if self.foliation_angle_tolerance < 90:
             dir_model = self.transform(end_point) - self.transform(start)
             unit_dir_model = dir_model / np.linalg.norm(dir_model)
-            foliation_dir_model = bcommon.direction_vector(-self.foliation_longitude+self.l5_azimuth+90, self.foliation_latitude)
+            foliation_dir_model = direction_vector(-self.foliation_longitude+self.l5_azimuth+90, self.foliation_latitude)
             if abs(np.dot(unit_dir_model, foliation_dir_model)) < np.cos(np.radians(self.foliation_angle_tolerance)):
                 return None
 
@@ -249,7 +263,7 @@ class Lateral:
 
     def bh_from_angle(self, start, angles, length=30, group=""):
         start = np.array(start)
-        end = (start + length * bcommon.direction_vector(*angles))
+        end = (start + length * direction_vector(*angles))
         line_points = self._filter_line(start, end)
         return self._make_bh(line_points, group)
 
@@ -365,7 +379,7 @@ class Borehole:
     @property
     def yz_angles(self) -> Tuple[float, float]:
         # relative azimuth (y angle) and elevation (Z angle)
-        return bcommon.direction_angles(self.unit_direction)
+        return direction_angles(self.unit_direction)
 
 
     def __getstate__(self):
@@ -463,117 +477,11 @@ class BoreholeSet:
     def __setstate__(self, state):
         self.__dict__.update(state)
 
-    # @classmethod
-    # def from_angles(cls, cfg, lines):
-    #     n_points = 2*int(cfg.n_points_per_bh / 2) + 1
-    #     return BoreholeSet(
-    #         cfg.y_angles,
-    #         cfg.z_angles,
-    #         cfg.wh_pos_step,
-    #         np.array(cfg.wh_zones),
-    #         cfg.point_step,
-    #         n_points)
-
-    # @classmethod
-    # def from_lines(cls, cfg, lines):
-    #     """
-    #     CFG is used only for
-    #     :param cfg:
-    #     :param lines:
-    #     :return:
-    #     """
-    #     n_points = 2*int(cfg.n_points_per_bh / 2) + 1
-    #     return BoreholeSet(
-    #         cfg.point_step,
-    #         n_points,
-    #         lines)
-
-
-
-    # def axis_angles(self, axis):
-    #     return self._axis_angles[axis]
 
     @property
     def n_boreholes(self):
         return len(self.boreholes)
 
-    # @property
-    # def n_y_angles(self):
-    #     return len(self.axis_angles(0))
-    #
-    # @property
-    # def n_z_angles(self):
-    #     return len(self.axis_angles(1))
-
-
-
-    # @property
-    # def angles_table(self):
-    #     angle_tab, bh_list = self._build_boreholes
-    #     return angle_tab
-
-    # @property
-    # def bh_list(self):
-    #     angle_tab, bh_list = self._build_boreholes
-    #     return bh_list
-
-    # @cached_property
-    # def _angle_ijk(self):
-    #     table = np.empty((self.n_boreholes, 3), dtype=np.int32)
-    #     for i in range(self.n_y_angles):
-    #         for j in range(self.n_z_angles):
-    #             for k, i_bh in enumerate(self.angles_table[i][j]):
-    #                 table[i_bh, :] = (i,j,k)
-    #     return table
-    #
-    #
-    # def angle_ijk(self, i_bh):
-    #     return self._angle_ijk[i_bh]
-    #
-    # def direction_lookup(self, i, j):
-    #     return [self.bh_list[i_bh] for i_bh in self.angles_table[i][j]]
-    #
-    # def draw_angles(self, n):
-    #     return np.stack(
-    #          [np.random.randint(self.n_y_angles, size=n),
-    #                np.random.randint(self.n_z_angles, size=n)],
-    #                axis=1)
-
-
-
-
-
-
-        #return np.array([*pos, *bh_dir])
-    #
-    # @staticmethod
-    # def transversal_lengths(line1, lines):
-    #     """
-    #     Calculate the length of the transversal between a single line and multiple lines using vectorized operations.
-    #
-    #     Parameters:
-    #     line1: Numpy array representing the first line (point and direction vector)
-    #     lines: Numpy array of shape (N, 6), each row representing a line (point and direction vector)
-    #
-    #     Returns:
-    #     Numpy array of lengths of the transversals
-    #     """
-    #     wellhead = slice(0, 3)
-    #     direction = slice(3, 6)
-    #     # Extract point and direction vector from line1
-    #     a1, d1 = line1[wellhead], line1[direction]
-    #
-    #     # Extract points and direction vectors from lines
-    #     a2s, d2s = lines[:, wellhead], lines[:, direction]
-    #
-    #     # Compute cross products for all lines in a vectorized manner
-    #     cross_products = np.cross(d1[None, :], d2s)
-    #
-    #     # Calculate lengths of the transversals
-    #     differences = a2s - a1
-    #     lengths = np.abs(differences[:,None, :] @ cross_products[:, :, None])[:,0,0] / np.linalg.norm(cross_products, axis=1)
-    #
-    #     return lengths
 
     def subset(self, indices):
         new_set = [self.boreholes[i] for i in indices]
@@ -633,55 +541,6 @@ class BoreholeSet:
         points, bounds = zip(*placed)
         return np.array((points)), bounds
 
-    # def load_data(self, workdir, cfg):
-    #     """
-    #     Todo: Separate class taking BHSet as pure geometric data and adding the projected field.
-    #
-    #     Call projection of the HDF to the boreholes, output
-    #     provide times and line points
-    #     :return:
-    #     """
-    #
-    #     bh_samples_file = workdir / "bhset_samples.h5"
-    #     if cfg.boreholes.force or not bh_samples_file.exists():
-    #         bh_samples_file = self.project_field(bh_samples_file, mesh, field_file)
-    #     with open(workdir / "output_times.json") as f:
-    #         times = json.load(f)
-    #     self.times = times
-    #     return times, self.point_lines[0], bh_samples_file
-    #
-    # @property
-    # def projected_data(self):
-    #     """
-    #     bh_field shape: (n_boreholes, n_points, n_times, n_samples)
-    #     :return:
-    #     """
-    #     return self.times, self.point_lines[0], self._bh_field
-
-
-
-
-
-
-
-    # @cached_property
-    # def point_size(self):
-    #     """
-    #     For every borehole the length associated with a single point. (points are nonuniform)
-    #     :return: array of n_boreholes
-    #     """
-    #     interval_size = np.linalg.norm(self.point_lines[:, 1, :], axis=1)
-    #     point_size = interval_size / self.n_points
-    #     return point_size
-
-    # def make_bh_active_line(self, bh):
-    #     wellhead, dir, transversal_pt = bh
-    #     # create line segment symmetric around the transversal point and extending
-    #     # over active cylinder in Z and X coordinates
-    #     p1 = self.transform(transversal_pt - dir)
-    #     p2 = self.transform(transversal_pt + dir)
-    #     return [p1, (p2-p1)]
-
     @property
     def line_bounds(self):
         """
@@ -689,45 +548,6 @@ class BoreholeSet:
         :return: (n_boreholes, 2)
         """
         return self.point_lines[1]
-
-    #
-    # @cached_property
-    # def point_lines(self):
-    #     """
-    #     Returns:
-    #     points - shape (n_boreholes, n_points, coords)
-    #     line_bounds - shape (n_boreholes, [min, max])
-    #     :return:
-    #     """
-    #     bh_array = np.array([[bh.start, bh.unit_direction, bh.transversal] for bh in self.boreholes])
-    #     dir = bh_array[:, 1, :]
-    #     transversal_pt = bh_array[:, 2, :]
-    #     #p1 = self.transform((transversal_pt - dir))
-    #     #p2 = self.transform((transversal_pt + dir))
-    #     half_points = int((self.n_points - 1) / 2)
-    #     i_pt = np.arange(-half_points, half_points + 1, 1, dtype=int)
-    #     dir_length = np.linalg.norm(dir, axis=1)
-    #     pt_step = (dir / dir_length[:, None]) * self.point_step
-    #     points = transversal_pt[:, None, :] + pt_step[:, None, :] * i_pt[None, :, None]
-    #
-    #     # Bounds given by active cylinder
-    #     r, l0, l1 = self.lateral.active_cylinder
-    #     mask = (points[:, :, 0] > l0)
-    #     min_bound = np.argmax(mask, axis=1)
-    #     mask = (points[:, :, 0] < l1)
-    #     min_bound_flipped = np.argmax(np.flip(mask, axis=1), axis=1)
-    #     max_bound = mask.shape[1] - min_bound_flipped
-    #     assert len(points[0,:,0]) == self.n_points
-    #     #max_ax = np.argmax(np.abs(dir), axis=1)
-    #     #max_bound = (dir_length / self.point_step).astype(int)
-    #     min_bound = np.maximum(0, min_bound)
-    #     max_bound = np.minimum(self.n_points, max_bound)
-    #     assert np.all(min_bound <= max_bound)
-    #     assert np.all(max_bound <= self.n_points)
-    #     line_bounds = np.stack((min_bound, max_bound), axis=1)
-    #
-    #     points = self.transform(points)
-    #     return points, line_bounds
 
 
 @bcommon.memoize
@@ -889,7 +709,7 @@ def get_time_field(file_pattern, field_name):
     for filepath in files:
         mesh = pv.read(filepath)
         time_slices.append(mesh.cell_data.get_array(field_name))
-    mesh.clear_data()
+        mesh.clear_data()
     return np.array(time_slices), mesh
 
 def line_points(lines, n_points):

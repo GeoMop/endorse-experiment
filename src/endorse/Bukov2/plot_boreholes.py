@@ -11,7 +11,7 @@ import os
 from xml.etree import ElementTree as ET
 import attrs
 from pathlib import Path
-from endorse.Bukov2 import bukov_common as bcommon
+from endorse.Bukov2 import boreholes, bukov_common as bcommon
 
 
 def add_fields(mesh, value, label):
@@ -209,7 +209,7 @@ def _add_cone(plotter, start, direction, length, angle, color):
 
 def add_foliation_cylinders(plotter, lateral):
     if lateral.foliation_angle_tolerance < 90:
-        fol_dir = bcommon.direction_vector(-lateral.foliation_longitude+lateral.l5_azimuth+90, lateral.foliation_latitude)
+        fol_dir = boreholes.direction_vector(-lateral.foliation_longitude+lateral.l5_azimuth+90, lateral.foliation_latitude)
         r, l0, l1 = lateral.avoid_cylinder
         fol_start = lateral.transform([1.0 * l0 - 0.0 * l1, 0, 0])
         _add_cone(plotter, fol_start, fol_dir, 10, lateral.foliation_angle_tolerance, 'green')
@@ -417,14 +417,22 @@ class PlotCfg:
         plotter = plot_borehole_position(self.cfg, self.bh_set.boreholes[self.i_bh])
         return save_projections(plotter, self.workdir, f"bh_{self.i_bh}.png")
 
-    def plot_chamber_data(self, sensitivities, f_name, vmin):
+    def plot_chamber_data(self, sensitivities, data_name, vmin):
         """
         Plot some precomputed chamber data for selected chamber sizes.
         :return:
         """
         n_params = len(self.param_names)
         n_points = self.chambers.n_points
-        sizes = [4]
+        point_step = self.cfg.boreholes.common.point_step
+
+        # chamber size in terms of points
+        chamber_size = self.cfg.boreholes.common.plot_chamber_size
+
+        # following code could possibly plot more chamber sizes into a single plot
+        # todo: refactor for a single size
+        sizes = [chamber_size]
+
         range_sens = lambda b, s: sensitivities[self.chambers.index[b, min(b + s, n_points)]]
         chamber_data = [[ range_sens(i_begin, size)
                          for i_begin in range(0, n_points - size)]
@@ -445,21 +453,23 @@ class PlotCfg:
             for i_size, size in enumerate(sizes):
                 point_values = [l[i_param] for l in chamber_data[i_size]]
                 point_values = np.maximum(np.array(point_values), vmin)
-                x_pos = size // 2 + np.arange(0, n_points - size)
+                x_pos = (size // 2 + np.arange(0, n_points - size)) * point_step
                 colors = sm.to_rgba(point_values)
                 assert len(x_pos) == len(colors)
-                width = np.ones(len(x_pos))
+                width = point_step * np.ones(len(x_pos))
                 ax.broken_barh(list(zip(x_pos, width)), (i_size+0.1, 0.8), facecolors=colors)
 
-            #ax.set_ylabel(label, rotation=0, horizontalalignment='right', verticalalignment='center')
-            #ax.set_yticks([0.5, 1.5, 2.5])
-            #ax.set_yticklabels(['2', '4', '8'])
+            ax.set_ylabel(label, rotation=0, horizontalalignment='right', verticalalignment='center')
+            ax.set_yticks([])
+            ax.set_yticklabels([])
             #ax.set_xticks
         ax.xaxis.set_minor_locator(mpl.ticker.AutoMinorLocator())
-        xticks = list(range(0, 80, 10))
+        xticks = list(range(0, 40, 5))
         ax.set_xticks(xticks)
         ax.set_xticklabels(list(range(0, 40, 5)))
-        axes[0].set_title("Size", pad=-20)  # Title above the first axis
+        ax.set_xlabel("dist. of chamber center from bh head on L5 wall [m]")
+        real_size = chamber_size * point_step
+        axes[0].set_title(f"Sensitivities ({data_name}) on chambers of size={real_size} [m]", pad=-20)  # Title above the first axis
 
         # Create a common colorbar for all subplots
         cbar_ax = fig.add_axes([0.93, 0.15, 0.02, 0.7])  # x-position, y-position, width, height
@@ -467,31 +477,36 @@ class PlotCfg:
         cbar = fig.colorbar(sm, ax=axes, orientation='vertical', cax = cbar_ax)
 
         #plt.tight_layout()
-        fname = self.workdir / f_name
+        fname = self.workdir / f"chambers_{data_name}.pdf"
         fig.savefig(fname)
         if self.show:
             plt.show()
         return fname
 
-    def plot_mean_pressure(self):
-        chamber_pressures = self.chambers.cumul_bh_data[4:, :, :] - self.chambers.cumul_bh_data[:-4, :, :]
-        # (n_points - 1, n_times, n_samples)
+    def plot_mean_pressure(self, chamber_size):
         # Calculate the mean over the last dimension (samples)
-        mean_pressures = np.mean(chamber_pressures, axis=2)   # mean over samples
-        selected_pressures = mean_pressures[::4, :]
-        fig = self._plot_time_fun(selected_pressures)
-        fname = self.workdir / "mean_time_fun.pdf"
-        fig.savefig(fname)
-        return fname
+        return self._plot_stat_pressure(chamber_size, np.mean, 'mean')
 
-    def plot_q90_pressure(self):
-        chamber_pressures = self.chambers.cumul_bh_data[4:, :, :] - self.chambers.cumul_bh_data[:-4, :, :]
+    def plot_q90_pressure(self, chamber_size):
+        q90 = lambda x, **kwargs : np.quantile(x, q=0.9, **kwargs)
+        return self._plot_stat_pressure(chamber_size, q90, 'Q90')
+
+    def _plot_stat_pressure(self, chamber_size, stat_fn, stat_name):
+        point_step = self.cfg.boreholes.common.point_step
+        real_size = chamber_size * point_step
+
+        chamber_pressures = (self.chambers.cumul_bh_data[chamber_size:, :, :]
+                             - self.chambers.cumul_bh_data[:-chamber_size, :, :]) / chamber_size
         # (n_points - 1, n_times, n_samples)
-        # Calculate the mean over the last dimension (samples)
-        mean_pressures = np.quantile(chamber_pressures, q=0.9, axis=2)   # mean over samples
-        selected_pressures = mean_pressures[::4, :]
-        fig = self._plot_time_fun(selected_pressures)
-        fname = self.workdir / "q90_time_fun.pdf"
+        # Calculate the stat_fn over the last dimension (samples)
+        mean_pressures = stat_fn(chamber_pressures, axis=2)   # mean over samples
+        plot_points_step = self.cfg.boreholes.common.time_plot_points_step
+        selected_pressures = mean_pressures[::plot_points_step, :]
+        fig, ax = self._plot_time_fun(selected_pressures)
+        ax.set_ylabel(f'Pressure {stat_name}')
+        ax.set_title(f'Pressure on chambers of size {real_size} [m] for every {plot_points_step}th point')
+
+        fname = self.workdir / f"{stat_name}_time_fun_{chamber_size}.pdf"
         fig.savefig(fname)
         return fname
 
@@ -519,9 +534,7 @@ class PlotCfg:
         cbar.ax.set_yticklabels([f'Point {4*i}' for i in range(selected_pressures.shape[0])])
 
         ax.set_xlabel('Time')
-        ax.set_ylabel('Mean Pressure')
-        ax.set_title('Mean Pressure Over Time for Every 4th Point')
-        return fig
+        return fig, ax
 
     def plot_relative_residual(self):
         arr_copy = self.chambers.bh_data
@@ -726,11 +739,16 @@ class PlotCfg:
         plots = [
             *self.plot_borehole(),
             self.plot_chamber_data(self.chambers.chambers_sensitivities,
-                                   f_name="chambers_sa.pdf", vmin=1e-5),
+                                   data_name="absolute", vmin=1e-5),
             self.plot_chamber_data(self.chambers.chambers_norm_sensitivities,
-                                   f_name="chambers_norm_sa.pdf", vmin=1e-2),
-            self.plot_mean_pressure(),
-            self.plot_q90_pressure(),
+                                   data_name="relative", vmin=1e-2),
+            self.plot_mean_pressure(2),
+            self.plot_mean_pressure(4),
+            self.plot_mean_pressure(8),
+            self.plot_q90_pressure(2),
+            self.plot_q90_pressure(4),
+            self.plot_q90_pressure(8),
+
             self.plot_relative_residual(),
             self.plot_best_packers_st(),
             # self.plot_best_packers_full()

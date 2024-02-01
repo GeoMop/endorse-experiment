@@ -118,12 +118,15 @@ boreholes:
       # orientation of foliation plane and accepted deviation of boreholes
       foliation_latitude: 45
       foliation_longitude: 265
-      #foliation_angle_tolerance: 80
-      foliation_angle_tolerance: 90
+      foliation_angle_tolerance: 80
+      #foliation_angle_tolerance: 90
 
       point_step: 0.5             # absolute step of evaluation points (in meters)
       n_points_per_bh: 70      # borehole at most 20m active section
       n_boreholes_to_select: 6
+      plot_chamber_size: 4      # chamber size in points used for chamber sensitivity plots
+      time_plot_points_step: 4    # Make the time plot of a stat. function for every STEP point.
+      
     zk_40:  &ZK_40          # zk5_1S
       invert_xy: True
       common: *COMMON
