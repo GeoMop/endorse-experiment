@@ -99,8 +99,8 @@ def test_read_fields():
 @pytest.mark.skip
 def test_borhole_set():
     workdir, cfg = bcommon.load_cfg(script_dir / "3d_model_mock/Bukov2_mesh.yaml")
-    lateral = boreholes.Lateral.from_cfg(cfg.boreholes.zk_30)
-    bh_set = lateral.set_from_cfg(cfg.boreholes.zk_30)
+    lateral = boreholes.Lateral.from_cfg(cfg.boreholes.active_zk)
+    bh_set = lateral.set_from_cfg(cfg.boreholes.active_zk)
     print("N boreholes:", bh_set.n_boreholes)
 
     bh_set.boreholes_print_sorted()
@@ -116,7 +116,7 @@ def test_borhole_set():
 def test_from_end_points():
     workdir, cfg = bcommon.load_cfg(script_dir / "3d_model_mock/Bukov2_mesh.yaml")
 
-    lateral = boreholes.Lateral.from_cfg(cfg.boreholes.zk_30)
+    lateral = boreholes.Lateral.from_cfg(cfg.boreholes.active_zk)
     y_pos = -9.5
 
     lines = [
@@ -202,7 +202,7 @@ def test_field_projection():
     for f in borehole_field.data_files:
         with h5py.File(f, mode='r') as f:
             dset = f['pressure']
-            n_points = cfg.boreholes.zk_30.common.n_points_per_bh
+            n_points = cfg.boreholes.active_zk.common.n_points_per_bh
             n_times = 5
             n_samples = 96
             assert dset.shape == (n_points, n_times, n_samples)

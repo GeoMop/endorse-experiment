@@ -297,7 +297,7 @@ class Lateral:
             xyz_range = itertools.product(*ranges)
             for pos in xyz_range:
                 for yz_angle in yz_phi_range:
-                    length = cfg.max_bh_length
+                    length = cfg.common.max_bh_length
                     bh_list.append(self.bh_from_angle(pos, yz_angle, length))
 
         return self._make_bh_set(bh_list)
@@ -534,7 +534,7 @@ class BoreholeSet:
 
         :return:
         """
-        zk_cfg = cfg.boreholes.zk_30
+        zk_cfg = cfg.boreholes.active_zk
         n_points = zk_cfg.common.n_points_per_bh
         point_step = zk_cfg.common.point_step
         placed = [ bh.place_points(n_points, point_step) for bh in self.boreholes]
