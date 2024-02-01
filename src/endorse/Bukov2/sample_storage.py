@@ -36,19 +36,35 @@ class FileSafe(h5py.File):
         raise BlockingIOError(f"Unable to lock access to HDF5 file: {filename}, give up after: {timeout}s.")
 
 
-def create_chunked_dataset(file_path, shape):
+# def create_chunked_dataset(file_path, chunk_shape):
+#     """
+#
+#     :param file_path:
+#     :param chunk_shape:
+#     :return:
+#     """
+#     # Recomended Chuk size 10kB up to 1MB
+#     max_shape = (None, *chunk_shape[1:])    # Allow infinite grow in the number of samples.
+#     init_shape = chunk_shape                # Initialize to the size of single chunk. Does not matter.
+#     with h5py.File(file_path, 'w') as f:
+#         # chunks=True ... automatic chunk size
+#         f.create_dataset(dataset_name, shape=init_shape, maxshape=max_shape, chunks=True, dtype='float64')
+
+def create_chunked_dataset(file_path, shape, chunks):
     """
 
     :param file_path:
-    :param chunk_shape:
+    :param shape:
+    :param chunks:
     :return:
     """
     # Recomended Chuk size 10kB up to 1MB
     with h5py.File(file_path, 'w') as f:
         # chunks=True ... automatic chunk size
         # f.create_dataset(dataset_name, data=np.zeros(shape), chunks=True, dtype='float64')
-        f.create_dataset(dataset_name, shape=shape, chunks=True, dtype='float64')
-        f.create_dataset(failed_ids_name, shape=(0,1), maxshape=(shape[0],1), dtype='int')
+        f.create_dataset(dataset_name, shape=shape, chunks=chunks, dtype='float64')
+        f.create_dataset(failed_ids_name, shape=(0,), maxshape=(shape[0],), dtype='int')
+        f.create_dataset(done_ids_name, shape=(0,), maxshape=(shape[0],), dtype='int')
 
 
 def append_new_dataset(file_path, name, data):
@@ -58,23 +74,24 @@ def append_new_dataset(file_path, name, data):
 
 def set_sample_data(file_path, new_data, idx):
     try:
-        with FileSafe(file_path, mode='a', timeout=60) as f:
-
+        # with FileSafe(file_path, mode='a', timeout=60) as f:
+        with h5py.File(file_path, 'a') as f:
             if new_data is None:
-                set_failed_sample(f[failed_ids_name])
+                set_status_sample(f[failed_ids_name], idx)
             else:
                 dset = f[dataset_name]
-                if dset.shape[1:] == new_data.shape:
+                if dset.shape[1:] == new_data.shape[1:]:
                     dset[idx, :, :] = new_data
+                    set_status_sample(f[done_ids_name], idx)
                 else:
                     print("Save sample data failed - wrong shape {}, idx {}.".format(new_data.shape, idx))
-                    set_failed_sample(f[failed_ids_name])
+                    set_status_sample(f[failed_ids_name], idx)
     except:
         print("Save sample data failed. idx ", idx)
         traceback.print_exc()
 
 
-def set_failed_sample(dset, idx):
+def set_status_sample(dset, idx):
     n_existing = dset.shape[0]  # Current actual size in the N dimension
     dset.resize(n_existing + 1, axis=0)
     dset[n_existing] = idx
@@ -129,11 +146,9 @@ def read_dataset(file_path):
 # # When you have new data to append
 # new_data = np.random.rand(K, M, n)  # Your new data
 # append_data(file_path, dataset_name, new_data)
-
 def get_hdf5_field(hdf_file):
     with h5py.File(hdf_file, 'r') as f:
         return np.array(f[dataset_name])
-
 
 # Example usage
 # file_path = 'your_file.h5'
