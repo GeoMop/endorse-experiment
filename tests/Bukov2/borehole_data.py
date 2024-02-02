@@ -15,9 +15,10 @@ allowing better overleap of calculation and communication and also keeping files
 """
 import sys
 import logging
+import subprocess
 
-import h5py
-import numpy as np
+#import h5py
+#import numpy as np
 from pathlib import Path
 from endorse.Bukov2.sample_storage import dataset_name, failed_ids_name, done_ids_name
 from endorse.common import load_config
@@ -25,6 +26,8 @@ from endorse.Bukov2 import sa_problem, boreholes
 from endorse.Bukov2.bukov_common import memoize, file_result, load_cfg
 params_name="parameters"
 from pathlib import Path
+script_path = Path(__file__).absolute()
+
 
 def main(workdir, from_sample):
     cfg_file = workdir / "Bukov2_mesh.yaml"
@@ -45,7 +48,7 @@ echo "===="
 {python} {script_path} {workdir} {args}
 """
 def submit_pbs(workdir, args):
-    workdir, cfg = bcommon.load_cfg(workdir / "Bukov2_mesh.yaml")    
+    workdir, cfg = load_cfg(workdir / "Bukov2_mesh.yaml")    
     queue = cfg.pbs.queue
     pbs_filename = workdir / "borehole_data.pbs"
     parameters = dict(
@@ -75,14 +78,16 @@ def submit_pbs(workdir, args):
 
 if __name__ == '__main__':
     workdir = Path(sys.argv[1]).absolute()
+    print(sys.argv)
     if len(sys.argv) > 2 and (sys.argv[2] == 'submit'):
         # submit the job
-        submit_pbs(workdir, argv[3:])
-
-    if len(sys.argv) > 2:
-        from_sample = int(sys.argv[2])
+        print('submit')
+        submit_pbs(workdir, sys.argv[3:])
     else:
-        from_sample = 0
+        if len(sys.argv) > 2:
+            from_sample = int(sys.argv[2])
+        else:
+            from_sample = 0
 
-    # run the borhehole data preparation.
-    main(workdir, from_sample)
+        # run the borhehole data preparation.
+        main(workdir, from_sample)

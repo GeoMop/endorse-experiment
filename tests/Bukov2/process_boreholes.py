@@ -68,10 +68,10 @@ def submit_pbs(workdir):
     with open(pbs_filename, "w") as f:
         f.write(pbs_script)
     
-    per_chunk = 2
+    per_chunk = 4
     n_chunks = n_workers // (per_chunk+1) 
     
-    cmd = ['qsub', '-q', queue, '-l', f'select={n_chunks}:ncpus={per_chunk}:mem=90gb', '-l', 'place=scatter', pbs_filename]
+    cmd = ['qsub', '-q', queue, '-l', f'select={n_chunks}:ncpus={per_chunk}:mem=20gb', '-l', 'place=scatter', pbs_filename]
     subprocess.run(cmd, check=True)
 
 if __name__ == '__main__':

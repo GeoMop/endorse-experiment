@@ -135,7 +135,8 @@ def memoize(func):
             print("Memoize to: ", workdir, fname)
             pkl_write(workdir, val, fname)
         else:
-            print(f"Skip {func.__name__}, val: {str(val)[:200]} .")
+            #print(f"Skip {func.__name__}, val: {str(val)[:200]} .")
+            print(f"Skip {func.__name__}.")
         return val
     return wrapper
 
