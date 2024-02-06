@@ -7,7 +7,7 @@ import yaml
 rep_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(rep_dir)
 
-from flow123d_simulation import endorse_2Dtest
+from endorse.Bukov2.flow123d_simulation import endorse_2Dtest
 
 
 def setup_config(output_dir):
