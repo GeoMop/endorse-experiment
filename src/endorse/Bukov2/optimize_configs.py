@@ -274,7 +274,7 @@ def export_vtk_bh_chamber_set(cfg_file, bh_pk_ids, fname, plot=False):
             t_for_idx(bi, all_packer_coords[bi, pi, 0])
             for pi in pids]
         t_0 = t_for_idx(bi, all_packer_coords[bi, 0, 0])
-        packers.insert(0, t_0)
+        #packers.insert(0, t_0)
         return packers
 
     packer_coords = [
@@ -287,7 +287,7 @@ def export_vtk_bh_chamber_set(cfg_file, bh_pk_ids, fname, plot=False):
         i_begin = [pids[i] for i in range(len(pids)-1)]
         i_end = [pids[i+1]-2 for i in range(len(pids)-1)]
         bh_sens = [data[index[i_begin, i_end],:] for i_begin, i_end in zip(i_begin, i_end)]
-        bh_sens.insert(0, data[-1, :])
+        #bh_sens.insert(0, data[-1, :])
         sensitivities.append(bh_sens)
     chamber_data = [packer_coords, sensitivities, param_names]
     plot_boreholes.export_vtk_bh_set(workdir, bh_set.subset(bh_indices), chamber_data=chamber_data, fname=fname)

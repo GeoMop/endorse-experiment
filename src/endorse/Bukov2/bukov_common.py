@@ -11,25 +11,6 @@ from pathlib import Path
 import numpy as np
 
 
-def direction_vector(y_phi, z_phi):
-    y_phi = y_phi / 180 * np.pi
-    z_phi = z_phi / 180 * np.pi
-    sy, cy = np.sin(y_phi), np.cos(y_phi)
-    sz, cz = np.sin(z_phi), np.cos(z_phi)
-    return np.array([cy * cz, sy * cz, sz])
-
-
-def direction_angles(unit_direction):
-    z_angle = np.arcsin(unit_direction[2])
-    y_angle = np.arcsin(unit_direction[1] / np.cos(z_angle))
-    return 180 * y_angle / np.pi, 180 * z_angle / np.pi
-
-
-def normalize_sensitivities(data, fn):
-    data_2d = data.reshape(-1, data.shape[-1])
-    param_scale = fn(data_2d, axis=0)
-    data_scaled =  data_2d[:, :] / param_scale[None, :]
-    return data_scaled.reshape(data.shape)
 
 def soft_lim_pressure(pressure):
     atm_pressure = 1.013 * 1e5 / 9.89 / 1000    # atmospheric pressure in [m] of water
@@ -130,17 +111,6 @@ def pkl_read(workdir, name):
     return result
 
 
-# def memoize(func):
-#     def wrapper(workdir, *args, **kwargs):
-#         fname = f"{func.__name__}.pkl"
-#         val = pkl_read(workdir, fname)
-#         if val is None:
-#             val = func(args, kwargs)
-#             pkl_write(workdir, val, fname)
-#         return val
-#     return wrapper
-#
-
 
 
 def memoize(func):
@@ -165,7 +135,8 @@ def memoize(func):
             print("Memoize to: ", workdir, fname)
             pkl_write(workdir, val, fname)
         else:
-            print(f"Skip {func.__name__}, val: {str(val)[:200]} .")
+            #print(f"Skip {func.__name__}, val: {str(val)[:200]} .")
+            print(f"Skip {func.__name__}.")
         return val
     return wrapper
 
