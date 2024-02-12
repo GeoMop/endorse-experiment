@@ -2,6 +2,7 @@ import os
 import subprocess
 import time
 
+import logging
 import numpy as np
 import pyvista as pv
 import itertools
@@ -11,6 +12,7 @@ import csv
 import yaml
 from typing import List
 import traceback
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import scipy.integrate
@@ -34,20 +36,20 @@ def generate_time_axis(config_dict):
     return times
 
 
-class endorse_2Dtest():
+class Flow123dSimulation:
 
     def __init__(self, config, clean):
 
         if "sample_subdir" in config:
-            self.work_dir = config["sample_subdir"]
+            self.work_dir = Path(config["sample_subdir"])
             print(config["sample_subdir"])
         else:
-            self.work_dir = config["work_dir"]
+            self.work_dir = Path(config["work_dir"])
         self.clean = clean
         self._config = config
         self.sample_counter = -1
-        self.sample_dir = ""
-        self.sample_output_dir = ""
+        self.sample_dir = Path(".")
+        self.sample_output_dir = "output"
 
     def set_parameters(self, data_par):
         param_list = self._config["parameters"]
@@ -55,7 +57,7 @@ class endorse_2Dtest():
 
         for idx, param in enumerate(param_list):
             pname = param["name"]
-            assert(pname in self._config["hm_params"])
+            assert pname in self._config["hm_params"], pname + " not in hm_params"
             self._config["hm_params"][pname] = data_par[idx]
 
     def get_observations(self):
@@ -77,57 +79,46 @@ class endorse_2Dtest():
 
         # create sample dir
         self.sample_counter = self.sample_counter + 1
-        self.sample_dir = os.path.join(self.work_dir,
-                                       "solver_" + str(config_dict["solver_id"]).zfill(2) +
-                                       "_sample_" + str(self.sample_counter).zfill(3))
-        os.makedirs(self.sample_dir, mode=0o775, exist_ok=True)
+        self.sample_dir = self.work_dir/("solver_" + str(config_dict["solver_id"]).zfill(2) +
+                                         "_sample_" + str(self.sample_counter).zfill(3))
+        self.sample_dir.mkdir(mode=0o775, exist_ok=True)
+
+        logging.info("=========================== RUNNING CALCULATION " +
+              "solver {} ".format(config_dict["solver_id"]).zfill(2) +
+              "sample {} ===========================".format(self.sample_counter).zfill(3))
+        logging.info(self.sample_dir)
         os.chdir(self.sample_dir)
 
-        param_key = 'hm_params'
-        self.sample_output_dir = "output_" + config_dict[param_key]["in_file"]
-
-        print("=========================== RUNNING CALCULATION " +
-              "solver {} ".format(config_dict["solver_id"]).zfill(2) +
-              "sample {} ===========================".format(self.sample_counter).zfill(3),
-              flush=True)
-        print(self.sample_dir)
-
         # collect only
-        if config_dict["collect_only"]:
-            return 2, self.collect_results(config_dict)
+        # not used in any project (was used for dev in WGC2020)
+        # if config_dict["collect_only"]:
+        #     return 2, self.collect_results(config_dict)
 
-        print("Creating mesh...")
-        # comp_mesh = self.prepare_mesh(config_dict, cut_tunnel=False)
+        logging.info("Creating mesh...")
         comp_mesh = self.prepare_mesh(config_dict, cut_tunnel=False)
 
         mesh_bn = os.path.basename(comp_mesh)
         config_dict["hm_params"]["mesh"] = mesh_bn
 
         # endorse_2Dtest.read_physical_names(config_dict, comp_mesh)
-        print("Creating mesh...finished")
 
         if config_dict["mesh_only"]:
             return -10, None  # tag, value_list
 
         # endorse_2Dtest.prepare_hm_input(config_dict)
-        print("Running Flow123d - HM...")
-        hm_succeed = self.call_flow(config_dict, param_key, result_files=["flow_observe.yaml"])
-
-        # params = config_dict.tsx_hm_model.hm_params
-        # template = os.path.join(flow123d_inputs_path, params.input_template)
-        # self.flow_output = common.call_flow(config_dict.flow_env, template, params)
+        hm_succeed, fo = self.call_flow(config_dict, 'hm_params', result_files=["flow_observe.yaml"])
 
         if not hm_succeed:
             # raise Exception("HM model failed.")
             # "Flow123d failed (wrong input or solver diverged)"
-            print("Flow123d failed.")
+            logging.warning("Flow123d failed.")
             # still try collect results
             try:
                 collected_values = self.collect_results(config_dict)
-                print("Sample results collected.")
+                logging.info("Sample results collected.")
                 return 3, collected_values  # tag, value_list
             except:
-                print("Collecting sample results failed:")
+                logging.error("Collecting sample results failed:")
                 traceback.print_exc()
                 return -3, None
             # return -1, None  # tag, value_list
@@ -137,11 +128,11 @@ class endorse_2Dtest():
             try:
                 self.observe_time_plot(config_dict)
             except:
-                print("Making plot of sample results failed:")
+                logging.error("Making plot of sample results failed:")
                 traceback.print_exc()
                 return -2, None
 
-        print("Finished computation")
+        logging.info("Finished computation")
 
         # collected_values = self.collect_results(config_dict)
         # print("Sample results collected.")
@@ -149,10 +140,10 @@ class endorse_2Dtest():
 
         try:
             collected_values = self.collect_results(config_dict)
-            print("Sample results collected.")
+            logging.info("Sample results collected.")
             return 1, collected_values  # tag, value_list
         except:
-            print("Collecting sample results failed:")
+            logging.error("Collecting sample results failed:")
             traceback.print_exc()
             return -3, None
 
@@ -261,113 +252,19 @@ class endorse_2Dtest():
         :return:
         """
 
-        status = False
         params = config_dict[param_key]
-        fname = params["in_file"]
-        arguments = ['env', '-i']
-        arguments.extend(config_dict["local"]["flow_executable"].copy())
-        arguments.extend(['--output_dir', self.sample_output_dir, fname + ".yaml"])
+        arguments = config_dict["local"]["flow_executable"].copy()
 
-        stdout_path = fname + "_stdout"
-        stderr_path = fname + "_stderr"
         if all([os.path.isfile(os.path.join(self.sample_output_dir, f)) for f in result_files]):
             status = True
-            completed = subprocess.CompletedProcess(args=arguments, returncode=0)
+            completed_process = subprocess.CompletedProcess(args=arguments, returncode=0)
         else:
-            common.substitute_placeholders(
-                os.path.join(config_dict["common_files_dir"],
-                             fname + '_tmpl.yaml'),
-                fname + '.yaml',
-                params)
+            fname = params["in_file"]
+            input_template = common.File(Path(config_dict["common_files_dir"])/(fname + '_tmpl.yaml'))
+            completed_process, stdout, stderr = common.flow_call(self.sample_dir, arguments, input_template, params)
+        status, fo = common.flow_check(self.sample_dir, completed_process, result_files)
 
-            print("Running: ", " ".join(arguments))
-            with open(stdout_path, "w") as stdout:
-                with open(stderr_path, "w") as stderr:
-                    completed = subprocess.run(arguments, stdout=stdout, stderr=stderr)
-            print("Exit status: ", completed.returncode)
-            status = completed.returncode == 0
-
-        if status:
-            fo = common.flow_call.FlowOutput(completed, stdout_path, stderr_path, self.sample_output_dir)
-            conv_check = fo.check_conv_reasons()
-            print("converged: ", conv_check)
-            status = conv_check >= 0
-
-        return status
-
-            # if not config_dict["run_on_metacentrum"]:
-            #     arguments.extend(['--output_dir', output_dir, fname + ".yaml"])
-            #     print("Running: ", " ".join(arguments))
-            #     with open(fname + "_stdout", "w") as stdout:
-            #         with open(fname + "_stderr", "w") as stderr:
-            #             completed = subprocess.run(arguments, stdout=stdout, stderr=stderr)
-            #     print("Exit status: ", completed.returncode)
-            #     status = completed.returncode == 0
-            # else:
-
-
-            # from mpi4py import MPI
-            # # arguments.extend(['--output_dir', os.path.abspath(output_dir), os.path.abspath(fname + ".yaml")])
-            # # print("Running: ", " ".join(arguments))
-            # # sub_comm = MPI.COMM_SELF.Spawn('flow123d', args=arguments[1:], maxprocs=1)
-            #
-            # # wrap inside bash script to simulate redirection of stderr and stdout from spawned process
-            # arguments.extend(['--output_dir', output_dir, fname + ".yaml"])
-            # finished_file = "FINISHED"
-            # lines = [
-            #     '#!/bin/bash',
-            #     'cd ' + self.sample_dir,
-            #     'touch ' + finished_file,
-            #     'extime=\"$(time (' + " ".join(arguments) + " 2> stderr.log" + " 1> stdout.log" + ") 2>&1 1>/dev/null )\"",
-            #     'printf "$extime" >> ' + finished_file
-            #     # " ".join(arguments),
-            #     # 'printf "finished" >> ' + finished_file
-            # ]
-            # run_script = "flow123d.sh"
-            # run_script = os.path.abspath(run_script)
-            # with open(run_script, 'w') as f:
-            #     f.write('\n'.join(lines))
-            # sub_comm = MPI.COMM_SELF.Spawn('bash', args=[run_script], maxprocs=1)
-            # # sub_comm.Barrier()
-            # sub_comm.Disconnect()
-            # status = False
-            # max_time = config_dict["max_time_per_sample"]
-            # step = min(2, max_time)
-            # cumul_time = 0
-            # finished_file = os.path.join(self.sample_dir, finished_file)
-            # log_file = os.path.join(self.sample_dir, output_dir, "flow123.0.log")
-            # print(finished_file)
-            # print(log_file)
-            #
-            # while cumul_time < max_time:
-            #     time.sleep(step)
-            #     cumul_time = cumul_time + step
-            #     print("cumul_time:", cumul_time, "log size:", os.stat(log_file).st_size)
-            #     print("finished size:", os.stat(finished_file).st_size)
-            #     # this works:
-            #     if os.path.isfile(finished_file) and os.stat(finished_file).st_size != 0:
-            #     # this does not:
-            #     # if  os.stat(finished_file).st_size != 0:
-            #             time.sleep(step)
-            #             status = True
-            #             break
-            #
-            #     # if os.path.isfile(log_file):
-            #     #     with open(log_file, 'r') as f:
-            #     #         for line in f:
-            #     #             pass
-            #     #         print(line)
-            #     #         status = line == "  - O.K."
-            #     #     time.sleep(step)
-            #         # status = True
-
-            # if status:
-            # conv_check = aux_functions.check_conv_reasons(log_file)
-            # print("converged: ", conv_check)
-            # status = conv_check >= 0
-            #
-            # return status
-
+        return status, fo
 
 
     def prepare_mesh(self, config_dict, cut_tunnel):
@@ -380,6 +277,9 @@ class endorse_2Dtest():
         print(mesh_healed)
 
         # suppose that the mesh was created/copied during preprocess
+        print(os.path.join(config_dict["common_files_dir"]))
+        print(mesh_healed)
+
         assert os.path.isfile(os.path.join(config_dict["common_files_dir"], mesh_healed))
         shutil.copyfile(os.path.join(config_dict["common_files_dir"], mesh_healed), mesh_healed)
         return mesh_healed

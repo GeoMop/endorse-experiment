@@ -3,11 +3,12 @@
 import os
 import sys
 import yaml
+from pathlib import Path
 
 rep_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(rep_dir)
 
-from endorse.Bukov2.flow123d_simulation import endorse_2Dtest
+from endorse.Bukov2.flow123d_simulation import Flow123dSimulation
 
 
 def setup_config(output_dir):
@@ -61,14 +62,14 @@ def setup_config(output_dir):
 
 
 class Wrapper:
-    def __init__(self, solver_id, output_dir, config_dict=None):
+    def __init__(self, solver_id, output_dir: Path, config_dict=None):
 
         if config_dict is None:
             config_dict = setup_config(output_dir)
         config_dict["solver_id"] = solver_id
 
         clean = config_dict["clean_sample_dir"]
-        self.sim = endorse_2Dtest(config_dict, clean=clean)
+        self.sim = Flow123dSimulation(config_dict, clean=clean)
         
     def set_parameters(self, data_par):
         # conductivity = trans.normal_to_lognormal(data_par[0])
