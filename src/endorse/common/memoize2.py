@@ -1,8 +1,10 @@
 from typing import *
 import os
 import shutil
-import cloudpickle
 import pickle
+import functools
+import hashlib
+import cloudpickle
 
 
 class ResultCacheFile:
@@ -41,3 +43,30 @@ class ResultCacheFile:
             file_path = os.path.join(self._cache_dir, filename)
             if os.path.isdir(file_path):
                 shutil.rmtree(file_path)
+
+
+def memoize(cache):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            m = hashlib.sha256()
+            m.update(cloudpickle.dumps((func, args, kwargs)))
+            hash = m.digest()
+
+            fun_name = func.__name__
+            value = cache.value(hash, fun_name)
+            if value is ResultCacheFile.NoValue:
+                result = func(*args, **kwargs)
+                data = {
+                    "func": func,
+                    "args": args,
+                    "kwargs": kwargs,
+                    "result": result
+                }
+                cache.insert(hash, data, fun_name)
+            else:
+                result = value["result"]
+
+            return result
+        return wrapper
+    return decorator
