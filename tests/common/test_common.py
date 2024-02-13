@@ -75,7 +75,7 @@ def test_call_flow():
 
 
 def test_flow_simulation1():
-    orig_dir = os.getcwd()
+    os.chdir(script_dir)
     workdir = Path("test_workdir").absolute()
     solver_id = 42
     wrap = Wrapper(solver_id, workdir)
@@ -92,13 +92,11 @@ def test_flow_simulation1():
         res, sample_data = wrap.get_observations()
 
         print("Flow123d res: ", res, sample_data)
-        assert res < 0
-
-    os.chdir(orig_dir)
+        assert res > 0
 
 
 def test_flow_simulation2():
-    orig_dir = os.getcwd()
+    os.chdir(script_dir)
     workdir = Path("test_workdir2").absolute()
     solver_id = 42
     wrap = Wrapper(solver_id, workdir)
@@ -119,10 +117,9 @@ def test_flow_simulation2():
 
         times = generate_time_axis(wrap.sim._config)
         # sample_data shape: (1, n_times, n_elements)
-        assert len(times) == sample_data.shape[1]
         assert res >= 0
+        assert len(times) == sample_data.shape[1]
 
-    os.chdir(orig_dir)
 
 def test_sample_from_population():
     population = np.array([(i, i*i) for i in [1,2,3,4]])

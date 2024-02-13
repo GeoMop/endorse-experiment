@@ -93,7 +93,6 @@ problem: !Coupling_Sequential
 #            - velocity_p0
 #            - region_id
         output_stream:
-          file: flow.pvd
           format: !vtk
     mechanics_equation:
         user_fields:
@@ -104,7 +103,6 @@ problem: !Coupling_Sequential
           - name: sz
             field: <init_stress_z>
         output_stream:
-          file: mechanics.pvd
           format: !vtk
         output:
           times: <output_times>

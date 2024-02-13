@@ -114,7 +114,7 @@ class Flow123dSimulation:
             logging.warning("Flow123d failed.")
             # still try collect results
             try:
-                collected_values = self.collect_results(config_dict)
+                collected_values = self.collect_results(config_dict, fo)
                 logging.info("Sample results collected.")
                 return 3, collected_values  # tag, value_list
             except:
@@ -139,7 +139,7 @@ class Flow123dSimulation:
         # return 1, collected_values  # tag, value_list
 
         try:
-            collected_values = self.collect_results(config_dict)
+            collected_values = self.collect_results(config_dict, fo)
             logging.info("Sample results collected.")
             return 1, collected_values  # tag, value_list
         except:
@@ -187,11 +187,11 @@ class Flow123dSimulation:
     #     res = values.flatten()
     #     return res
 
-    def collect_results(self, config_dict):
+    def collect_results(self, config_dict, fo: common.FlowOutput):
         # Load the PVD file
-        pvd_file_path = os.path.join(self.sample_output_dir, "flow.pvd")
+        # pvd_file_path = os.path.join(self.sample_output_dir, "flow.pvd")
         field_name = "pressure_p0"
-        pvd_reader = pv.PVDReader(pvd_file_path)
+        pvd_reader = pv.PVDReader(fo.hydro.spatial_file.path)
 
         field_data_list = []
         for time_frame in range(len(pvd_reader.time_values)):
@@ -243,7 +243,7 @@ class Flow123dSimulation:
 
         return values
 
-    def call_flow(self, config_dict, param_key, result_files):
+    def call_flow(self, config_dict, param_key, result_files) -> (bool, common.FlowOutput):
         """
         Redirect sstdout and sterr, return true on succesfull run.
         :param result_files: Files to be computed - skip computation if already exist.
