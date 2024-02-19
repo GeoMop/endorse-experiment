@@ -1,5 +1,6 @@
 from typing import *
 import os
+import sys
 import shutil
 import pickle
 import functools
@@ -47,6 +48,8 @@ class ResultCacheFile:
 
 def memoize(cache):
     def decorator(func):
+        cloudpickle.register_pickle_by_value(sys.modules[func.__module__])
+
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             m = hashlib.sha256()
@@ -68,5 +71,8 @@ def memoize(cache):
                 result = value["result"]
 
             return result
+
+        wrapper.__name__ += "_memoize"
+
         return wrapper
     return decorator
