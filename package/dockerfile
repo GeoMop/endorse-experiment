@@ -1,5 +1,5 @@
 FROM flow123d/install-gnu:4.0.3 as installer
-FROM flow123d/ci-gnu:4.0.3dev_407d36
+FROM flow123d/ci-gnu:4.0.3dev_ae9ffc
 
 
 # Build-time metadata as defined at http://label-schema.org
