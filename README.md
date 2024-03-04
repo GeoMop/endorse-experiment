@@ -13,58 +13,51 @@ The entrypoints are:
 - tests/Bukov2 ... tests of SALib and other specific tools
 
 ## How to compute
-1. setup environment:
+1. download Docker image
+
+    One can use
     ```
-    bin/setup_venv
+    bin/endorse_fterm update
+    ```
+    Then one can possibly create SIF image for `singularity` using
+    ```
+    bin/endorse_fterm_sing
+    ```
+    to create `endorse.sif` and open container shell.
+2. setup environment:
+
+    From within the container (`docker` or `singularity`)
+    create the virtual environment:
+    ```
+    ~/endorse-experiment> bin/endorse_fterm_sing
+    Singularity endorse.sif:~/endorse-experiment> bin/setup_venv
     ```
     That would recreate virtual environment from the scratch.
-    On Charon, you need a Python module and you need the same module 
-    on computing nodes. The simples way to deal with this entry constrain is to  
-    add it into `.bashrc`:
-    ```
-    source /cvmfs/software.metacentrum.cz/modulefiles/5.1.0/loadmodules
-    module load python/3.9.12-gcc-10.2.1-rg2lpmk
-    ```
 
-    PE virtual environment using container (suppose having image `endorse.sif`):
-    ```
-    singularity shell endorse.sif
-    ./package/setup_venv_bayes.sh
-    ```
-    PE note:
-    Currently (4.1.24) tested the whole computation chain inside singularity
-    container with `venv_Bayes` environment without problem.
-    Therefore, no module is needed. Working branch `PE_sens_2D`.
+3. Plan and compute raw samples.
 
-    TODO:
-    - merge venv environments
-    - merge configs
-    - merge `PE_sens_2D` into `main`.
-
-2. Plan and compute raw samples.
-
-    Sampling itself is run by
+    Sampling itself is run by (start outside container)
     ```
     cd tests/Bukov2
-    ./run_test_D02
+    ./run_test_D03
     ```
     which calls `bin/endorse-bukov` which prepares sampling PBS jobs
     and depends on:
-    - configuration file `3d_model/config_sim_D02hm.yaml`
-    - template file `3d_model/D02_hm_tmpl.yaml`
+    - configuration file `3d_model/config_sim_D03hm.yaml`
+    - template file `3d_model/D03_hm_tmpl.yaml`
     - gmsh mesh `3d_model/Bukov_both_h100_31k.msh2`
 
-    PE The rest (3.4....) is gathered in shell script which can be run
+
+The following stages (4,5,6) are gathered in shell script which can be run
     inside singularity container:
-    ```
+
     qsub -I -q charon -l walltime=12:00:00 -l select=1:ncpus=1:mem=20gb
     ...
     singularity shell endorse.sif
     cd tests/Bukov2
     ./run_postprocess
-    ```
 
-3. Collect samples.
+4. Collect samples.
     ```
     cd tests/Bukov2
     ./python collect_hdf.py <dir_with_hdfs>
@@ -73,7 +66,7 @@ The entrypoints are:
     the complete sample groups are extracted. Few missing values are imputted 
     by the mean. Reduced dataset is formed for testing and debugging.
 
-4. Compute field Sobol Total indices:
+5. Compute field Sobol Total indices:
     ```
     cd tests/Bukov2
     ./python sobol_data.py <workdir>
@@ -89,7 +82,7 @@ The entrypoints are:
 
         qsub -I -q charon -l walltime=12:00:00 -l select=1:ncpus=1:mem=20gb
 
-5. Extract borehole data.
+6. Extract borehole data.
     ```
     cd tests/Bukov2
     ./python borehole_data.py <dir_with_hdfs>
@@ -99,7 +92,7 @@ The entrypoints are:
     Boreholes are in separate files under `workdir/borehole_data` in oredr to 
     simplify parallel processing.  
 
-6. Borehole calculations.
+7. Borehole calculations.
    ```
     cd tests/Bukov2
     ./python process_boreholes.py <dir_with_hdfs> [submit] [i_bh]
@@ -117,7 +110,7 @@ The entrypoints are:
    The packer configuration results are stored there together with generated plots.
 
    Optimization of all boreholes writes the resulting list into 
-7. Global measurement optimization.
+8. Global measurement optimization.
 ## original Endorse readme for reference
 
 The software implements specialized safety calculations for the excavation disturbed zone (EDZ)

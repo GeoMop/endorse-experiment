@@ -2,9 +2,9 @@ import sys
 import os.path
 
 import matplotlib.pyplot as plt
+from endorse import common
 from endorse.sa import sample, analyze
-from endorse.bayes_orig import aux_functions
-from endorse.bayes_orig import run_all as bayes_run_all
+from endorse.Bukov2.run_set_flow123d import setup
 import endorse.Bukov2.sample_storage as sample_storage
 
 import numpy as np
@@ -31,7 +31,7 @@ def prepare_pbs_scripts(sens_config_dict, output_dir_in, np):
     met = sens_config_dict["metacentrum"]
 
     pbs_dir = os.path.join(output_dir_in, pbs_job_dirname)
-    aux_functions.force_mkdir(pbs_dir, force=True)
+    common.force_mkdir(pbs_dir, force=True)
 
     def create_common_lines(id):
         name = met["name"] + "_" + id
@@ -135,9 +135,9 @@ def prepare_sets_of_params(parameters, output_dir_in, n_processes, par_names):
     rem = no_samples % n_processes
 
     param_dir = os.path.join(output_dir_in, param_dirname)
-    aux_functions.force_mkdir(param_dir, force=True)
+    common.force_mkdir(param_dir, force=True)
     empty_hdf_dir = os.path.join(output_dir_in, empty_hdf_dirname)
-    aux_functions.force_mkdir(empty_hdf_dir, force=True)
+    common.force_mkdir(empty_hdf_dir, force=True)
 
     sample_idx = 0
     off_start = 0
@@ -328,7 +328,7 @@ if __name__ == "__main__":
     # aux_functions.force_mkdir(output_dir, force=True)
     # shutil.copyfile("../test_data/config_sim_A04hm_V1_03.yaml", os.path.join(output_dir, "config.yaml"))
     # setup paths and directories
-    config_dict = bayes_run_all.setup(output_dir, can_overwrite=False, clean=False)
+    config_dict = setup(output_dir, can_overwrite=False, clean=False)
     # add repository dir
     config_dict["rep_dir"] = os.path.abspath(os.path.join(config_dict["script_dir"], "../../.."))
 
@@ -357,11 +357,11 @@ if __name__ == "__main__":
     print(param_values.shape)
 
     # plot requires LaTeX installed
-    plot_conductivity(config_dict, param_values)
+    # plot_conductivity(config_dict, param_values)
     # exit(0)
 
     sensitivity_dir = os.path.join(output_dir, sensitivity_dirname)
-    aux_functions.force_mkdir(sensitivity_dir, force=True)
+    common.force_mkdir(sensitivity_dir, force=True)
 
     # plan sample parameters a prepare them in CSV
     prepare_sets_of_params(param_values, sensitivity_dir, config_dict["n_processes"], problem["names"])
