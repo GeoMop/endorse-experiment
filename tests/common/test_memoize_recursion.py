@@ -106,8 +106,8 @@ def test_recursion():
     assert h5["c"] != h6["c"]
 
     # difference in not decorated function in same module with decorated function
-    h7 = run_hash(1, 1, 1, False, True, 1)
-    h8 = run_hash(1, 1, 2, False, True, 2)
+    h7 = run_hash(1, 1, 1, True, True, 1)
+    h8 = run_hash(1, 1, 1, True, True, 2)
     assert h7["a"] != h8["a"]
 
 
