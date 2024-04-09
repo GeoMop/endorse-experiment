@@ -8,6 +8,15 @@ import hashlib
 import cloudpickle
 
 
+_config = {
+    "debug": False
+}
+
+
+def basic_config(**kwargs):
+    _config.update(kwargs)
+
+
 class ResultCacheFile:
     class NoValue:
         pass
@@ -69,6 +78,10 @@ def memoize(cache):
                 cache.insert(hash, data, fun_name)
             else:
                 result = value["result"]
+                if _config["debug"]:
+                    new_result = func(*args, **kwargs)
+                    if new_result != result:
+                        print("Function {}, new result is different from cache result.".format(fun_name))
 
             return result
 
