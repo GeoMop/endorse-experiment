@@ -8,8 +8,6 @@ import pathlib
 import h5py
 import numpy as np
 import pyvista as pv
-import json
-from endorse.Bukov2 import sample_storage
 from endorse.Bukov2 import bukov_common as bcommon, plot_boreholes
 from vtk import vtkCellLocator
 

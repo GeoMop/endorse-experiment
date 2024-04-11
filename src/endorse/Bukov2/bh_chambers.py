@@ -2,7 +2,8 @@ from typing import *
 import attrs
 import itertools
 from endorse.Bukov2 import boreholes
-from endorse.Bukov2 import sobol_fast, bukov_common as bcommon
+from endorse.Bukov2 import bukov_common as bcommon
+from endorse.common import sobol_fast
 import numpy as np
 from endorse.sa.analyze import sobol_vec
 from functools import cached_property
