@@ -136,26 +136,39 @@ def memoize(cache):
     return decorator
 
 
-def pickle_remove_duplicit(p):
-    'Optimize a pickle string by removing unused PUT opcodes and duplicated unicode strings'
+def pickle_remove_duplicit(pkl):
+    """
+    Optimize a pickle microcode by removing unused PUT opcodes and duplicated unicode strings.
+    This is critical to avoid spurious hash differences.
+    """
     put = 'PUT'
     get = 'GET'
-    oldids = set()          # set of all PUT ids
-    newids = {}             # set of ids used by a GET opcode
-    opcodes = []            # (op, idx) or (pos, end_pos)
+    oldids = set()  # set of all PUT ids
+    newids = {}     # set of ids used by a GET opcode; later used to map used ids.
+    opcodes = []    # (op, idx) or (pos, end_pos)
     proto = 0
     protoheader = b''
     strings = {}
     memo_map = {}
     last_opcode_name = ""
     last_arg = None
-    for opcode, arg, pos, end_pos in pickletools._genops(p, yield_end_pos=True):
+
+    # Generate all opcodes and store positions to calculate end_pos
+    ops = list(pickletools.genops(pkl))
+    for i, (opcode, arg, pos) in enumerate(ops):
+        # Determine end_pos by looking at the position of the next opcode
+        end_pos = ops[i + 1][2] if i + 1 < len(ops) else len(pkl)
+
         if 'PUT' in opcode.name:
+            assert opcode.name in ('PUT', 'BINPUT'), f"{opcode.name}"
             oldids.add(arg)
             opcodes.append((put, arg))
         elif opcode.name == 'MEMOIZE':
             idx = len(oldids)
+
+            # Inserted into optimize
             if 'BINUNICODE' in last_opcode_name:
+                assert last_opcode_name in ('BINUNICODE', 'SHORT_BINUNICODE'), f"{last_opcode_name}"
                 if last_arg in strings:
                     opcodes.pop()
                     strid = strings[last_arg]
@@ -164,22 +177,28 @@ def pickle_remove_duplicit(p):
                     memo_map[idx] = strid
                 else:
                     strings[last_arg] = idx
+
             oldids.add(idx)
             opcodes.append((put, idx))
         elif 'FRAME' in opcode.name:
+            assert 'FRAME' == opcode.name, f"{opcode.name}"
             pass
         elif 'GET' in opcode.name:
+            assert opcode.name in ('GET', 'BINGET'), f"{opcode.name}"
             if opcode.proto > proto:
                 proto = opcode.proto
+
+            # inserted into optimize
             if arg in memo_map:
                 arg = memo_map[arg]
+
             newids[arg] = None
             opcodes.append((get, arg))
         elif opcode.name == 'PROTO':
             if arg > proto:
                 proto = arg
             if pos == 0:
-                protoheader = p[pos:end_pos]
+                protoheader = pkl[pos:end_pos]
             else:
                 opcodes.append((pos, end_pos))
         else:
@@ -205,9 +224,10 @@ def pickle_remove_duplicit(p):
             newids[arg] = idx
             idx += 1
         elif op is get:
+            assert newids[arg] is not None
             data = pickler.get(newids[arg])
         else:
-            data = p[op:arg]
+            data = pkl[op:arg]
             frameless = len(data) > pickler.framer._FRAME_SIZE_TARGET
         pickler.framer.commit_frame(force=frameless)
         if frameless:
