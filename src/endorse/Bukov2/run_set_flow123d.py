@@ -1,22 +1,58 @@
 import os
 import sys
+import shutil
 # import csv
 import pandas as pd
 import time
 import ruamel.yaml as yaml
 import numpy as np
 
-import flow_wrapper
-from measured_data import MeasuredData
+from endorse import common
+from endorse.Bukov2 import sample_storage, flow_wrapper
 
-from run_all import setup
-from preprocess import preprocess
 
-# from surrDAMH.modules.raw_data import RawData
-# from surrDAMH.modules.analysis import Analysis
+def setup(output_dir, can_overwrite, clean):
+    # create and cd workdir
+    rep_dir = os.path.dirname(os.path.abspath(__file__))
+    work_dir = output_dir
 
-from endorse.Bukov2 import sample_storage
+    # Files in the directory are used by each simulation at that level
+    common_files_dir = os.path.join(work_dir, "common_files")
+    # Create working directory if necessary
+    common.force_mkdir(common_files_dir, force=clean)
+    os.chdir(work_dir)
 
+    # test if config exists, copy from rep_dir if necessary
+    config_file = os.path.join(work_dir, "config.yaml")
+    if not os.path.exists(config_file):
+        # to enable processing older results
+        config_file = os.path.join(common_files_dir, "config.yaml")
+        if not os.path.exists(config_file):
+            raise Exception("Main configuration file 'config.yaml' not found in workdir.")
+        else:
+            import warnings
+            warnings.warn("Main configuration file 'config.yaml' found in 'workdir/common_files'.",
+                          category=DeprecationWarning)
+
+    # read config file and setup paths
+    with open(config_file, "r") as f:
+        yaml_reader = yaml.YAML(typ='safe', pure=True)
+        config_dict = yaml_reader.load(f)
+
+    config_dict["work_dir"] = work_dir
+    config_dict["script_dir"] = rep_dir
+
+    config_dict["common_files_dir"] = common_files_dir
+    # config_dict["bayes_config_file"] = os.path.join(common_files_dir,
+    #                                                 config_dict["surrDAMH_parameters"]["config_file"])
+
+    # copy common files
+    for f in config_dict["copy_files"]:
+        filepath = os.path.join(common_files_dir, f)
+        if not os.path.isfile(filepath) or can_overwrite:
+            shutil.copyfile(os.path.join(rep_dir, f), filepath)
+
+    return config_dict
 
 def just_run_flow123d(config_dict, measured_data, params_in, output_dir_in, solver_id):
 
@@ -51,38 +87,6 @@ def just_run_flow123d(config_dict, measured_data, params_in, output_dir_in, solv
 
         # if idx == 1:
         #     exit(0)
-
-
-# def get_best_accepted_params(config_dict_in, output_dir_in, count):
-#     no_parameters = len(config_dict_in['surrDAMH_parameters']['parameters'])
-#
-#     conf_bayes_path = os.path.join(output_dir_in, "common_files", config_dict_in["surrDAMH_parameters"]["config_file"])
-#     with open(conf_bayes_path) as f:
-#         config_bayes = yaml.safe_load(f)
-#     observations = np.array(config_bayes["problem_parameters"]["observations"])
-#     basename = os.path.basename(conf_bayes_path)
-#     problem_name, fext = os.path.splitext(basename)
-#     output_dir_bayes = os.path.join(output_dir_in, 'saved_samples', problem_name)
-#
-#     raw_data = RawData()
-#     raw_data.load(output_dir_bayes, no_parameters, len(observations))
-#     # type: 0-accepted, 1-prerejected, 2-rejected
-#     raw_data_filtered = raw_data.filter(types=[0, 2], stages=[0])
-#
-#     analysis_pe = Analysis(config=config_bayes, raw_data=raw_data_filtered)
-#     fits, norms = analysis_pe.find_n_best_fits(observations, count=count, norm="L2")
-#
-#     param_file = os.path.join(output_dir_in, "best_accepted_params.csv")
-#     params = []
-#     with open(param_file, 'w') as file:
-#         line = ','.join(analysis_pe.par_names)
-#         file.write(line + "\n")
-#         for sample in fits:
-#             params.append(sample.parameters())
-#             line = ','.join([str(s) for s in sample.parameters()])
-#             file.write(line + "\n")
-#
-#     return params
 
 
 def add_output_keys(config_dict):
