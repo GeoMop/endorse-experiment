@@ -2,15 +2,18 @@ from typing import *
 import attrs
 import itertools
 from endorse.Bukov2 import boreholes
-from endorse.sa import analyze
-from endorse.Bukov2 import sobol_fast, bukov_common as bcommon
-from endorse import common
+from endorse.Bukov2 import bukov_common as bcommon
+from endorse.common import sobol_fast
 import numpy as np
 from endorse.sa.analyze import sobol_vec
 from functools import cached_property
 
 @attrs.define(slots=False)
 class Chambers:
+    """
+    Class precomputing Sobol indices for all possible chambers, i.e. (begin, end)
+    pairs on the borehole.
+    """
     sa_problem : Dict[str, Any]
     orig_bh_data : np.ndarray
     bounds: Tuple[int, int]
@@ -56,43 +59,6 @@ class Chambers:
         amax_array = np.take_along_axis(array, i_variants, axis=axis).squeeze(axis=axis)
         return amax_array
 
-    # @cached_property
-    # def _detect_outliers(self):
-    #     arr = self.orig_bh_data
-    #     # Create a mask for NaNs and Infs
-    #     nan_inf_mask = np.isnan(arr) | np.isinf(arr)
-    #
-    #     # Create a copy of the array for further processing
-    #     arr_copy = arr.copy()
-    #
-    #     # Replace Infs with NaNs in the copy
-    #     arr_copy[nan_inf_mask] = np.nan
-    #
-    #     # Calculate quartiles and IQR across the last axis, ignoring NaNs
-    #     Q1 = np.nanpercentile(arr_copy, 25, axis=2, keepdims=True)
-    #     Q3 = np.nanpercentile(arr_copy, 75, axis=2, keepdims=True)
-    #     IQR = Q3 - Q1
-    #
-    #     # Determine outlier criteria
-    #     lower_bound = Q1 - 1.5 * IQR
-    #     upper_bound = Q3 + 1.5 * IQR
-    #
-    #     # Detect outliers on the copy
-    #     outlier_mask = (arr_copy < lower_bound) | (arr_copy > upper_bound)
-    #     outlier_mask = nan_inf_mask
-    #
-    #     # Calculate mean of non-outliers, ignoring NaNs
-    #     non_outlier_mean = np.nanmean(arr_copy, axis=2, keepdims=True)
-    #
-    #     # Replace outliers in the original array with the mean of non-outliers
-    #     np.putmask(arr_copy, outlier_mask, non_outlier_mean)
-    #     assert arr_copy.shape == arr.shape
-    #
-    #     return outlier_mask, arr_copy
-
-    # @property
-    # def outlier_mask(self):
-    #     return self._detect_outliers[0]
 
     @cached_property
     def bh_data(self):
@@ -220,6 +186,13 @@ class Chambers:
         index, data = self._all_chambers
         return data
 
+    @staticmethod
+    def normalize_sensitivities(data, fn):
+        data_2d = data.reshape(-1, data.shape[-1])
+        param_scale = fn(data_2d, axis=0)
+        data_scaled = data_2d[:, :] / param_scale[None, :]
+        return data_scaled.reshape(data.shape)
+
     @cached_property
     def chambers_norm_sensitivities(self):
         data = self.chambers_sensitivities
@@ -228,7 +201,7 @@ class Chambers:
         function.
         """
         scaling_measure = lambda x, **kw : np.quantile(data, q=0.95, **kw)
-        return bcommon.normalize_sensitivities(data, scaling_measure)
+        return self.normalize_sensitivities(data, scaling_measure)
 
     # @property
     # def index(self):
@@ -246,6 +219,12 @@ class Chambers:
 
 @attrs.define(slots=False)
 class PackerConfig:
+    """
+    Single configuration of the packers on a borehole,
+    with corresponding sensitivites.
+    Result of packer optimization on a single borehole,
+    performed by optimize_packers.
+    """
     packers: np.ndarray          # (n_packers,) int ; positions of the ends of the packers,
     st_values: np.ndarray        # chambers sensitivities, shape (3, n_params)
     opt_values: np.ndarray       # value of self in the view of every parameter (n_params, 2) ... objective components

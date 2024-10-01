@@ -1,8 +1,9 @@
 import pytest
 import endorse.Bukov2.bukov_common as bcommon
 from endorse import common
-from endorse.Bukov2 import bh_chambers, mock, sa_problem, sobol_fast, process_bh
-from endorse.Bukov2 import plot_boreholes, boreholes
+from endorse.Bukov2 import bh_chambers, sa_problem, process_bh
+from endorse.common import sobol_fast
+from endorse.Bukov2 import boreholes
 from pathlib import Path
 script_dir = Path(__file__).absolute().parent
 

@@ -1,15 +1,8 @@
-from typing import *
-import attrs
-import itertools
 import tracemalloc
 
 from endorse.Bukov2 import boreholes
-from endorse.sa import analyze
-from endorse.Bukov2 import sobol_fast
+from endorse.common import sobol_fast
 from endorse import common
-import numpy as np
-from endorse.sa.analyze import sobol_vec
-from functools import cached_property
 from endorse.Bukov2 import sobol_fast, bukov_common as bcommon, sa_problem, plot_boreholes, bh_chambers
 
 def borehole_dir(workdir, i_bh):
@@ -19,7 +12,7 @@ def borehole_dir(workdir, i_bh):
 
 def process_borehole(workdir, i_bh):
     bh_workdir = borehole_dir(workdir, i_bh)
-    force = False
+    force = True
     return _process_borehole(bh_workdir, workdir, i_bh, force=force)
 
 @bcommon.memoize

@@ -1,5 +1,17 @@
+"""
+Using collected samples in a merged HDF5 file, compute Sobol indices for all elements in all times.
+
+Usage: 
+python3 sobol_data.py <workdir> [<force>]
+
+workdir     - directory with "Bukov2_mesh.yaml" main config file
+force       - 0 = (default) append intermediate result files, 1 = delete intermediate results:
+   workdir / "characterize_samples.pkl"
+   workdir / "mesh_sobol_st.h5"
+   workdir / "sensitivity" directory with resulting VTU files
+"""
+
 import sys
-import logging
 import shutil
 
 import h5py
@@ -8,9 +20,11 @@ from pathlib import Path
 import pyvista as pv
 
 from endorse import common
-from endorse.Bukov2.sample_storage import dataset_name, failed_ids_name, done_ids_name
+from endorse.Bukov2.sample_storage import dataset_name
 from endorse.Bukov2.bukov_common import memoize, file_result, load_cfg, soft_lim_pressure
-from endorse.Bukov2 import sa_problem, sobol_fast
+from endorse.Bukov2 import sa_problem
+from endorse.common import sobol_fast
+
 
 #params_name = "parameters"
 

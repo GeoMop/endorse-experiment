@@ -3,9 +3,9 @@
 # if run by run_all*, it is set automatically
 run_on_metacentrum: True
 metacentrum:
-  chunks: 1 # 2
-  ncpus_per_chunk: 4 # max 20 cpus per node(chunk)
-  walltime: 00:10:00 # 18:00:00
+  chunks: 2
+  ncpus_per_chunk: 20  # max 20 cpus per node(chunk)
+  walltime: "20:00:00"  # 18:00:00
   memory: 8gb
   queue: charon
   name: TSX_bayes
@@ -17,7 +17,6 @@ metacentrum:
 collect_only: False
 mesh_only: False
 make_plots: True
-synthetic_data: True
 
 # if True, it removes sample dir right after the sample is collected
 clean_sample_dir: False
@@ -64,42 +63,24 @@ output_times: &output_times
   - {begin: *bored_time, step: 10, end: 100}
   - {begin: 100, step: 20, end: *end_time}
 
-# SHORT TESTING time axis
-#start_time: &start_time 0
-#end_time: &end_time 30
-#bored_time: &bored_time 17
-#output_times: &output_times
-#  - {begin: *start_time, step: 10, end: *bored_time}
-#  - {begin: *bored_time, step: 5, end: *end_time}
-
 
 surrDAMH_parameters:
   config_file: &config_bayes config_mcmc_bayes.yaml
   parameters:
-#    - name: biot_coefficient
-#      type: normal_to_beta
-#      options:
-#        alfa: 50.0
-#        beta: 200.0
-    #- name: bulk_conductivity
-      #type: normal_to_lognormal
-      #options:
-        #mu: -32.766
-        #sigma: 3.0
     - name: storativity
       type: normal_to_lognormal
       options:
-        mu: -15.99749073 # -16.434
+        mu: -14.5662279378421
         sigma: 2.0
     - name: young_modulus
       type: normal_to_lognormal
       options:
-        mu: 25.5615372 # 24.817
+        mu: 23.2670944048714
         sigma: 2.0
     - name: init_stress_x
       type: normal_to_lognormal
       options:
-        mu: 17.89786378 # 17.622
+        mu: 17.8553760319809
         sigma: 2.0
     - name: init_stress_y
       type: normal_to_lognormal
@@ -109,47 +90,61 @@ surrDAMH_parameters:
     - name: perm_kr
       type: normal_to_lognormal
       options:
-        mu: -48.20508705 # -48.865
+        mu: -49.4456937078649
         sigma: 3.0
     - name: perm_km
       type: normal_to_lognormal
       options:
-        mu: -41.19507454 # -37.064
+        mu: -33.8402223378873
         sigma: 3.0
     - name: perm_beta
       type: normal_to_lognormal
       options:
-        mu: -14.81288295 # -14.732
+        mu: -13.1451669487322
         sigma: 2.0
     - name: perm_gamma
       type: normal_to_lognormal
       options:
-        mu: -14.4425268 # -15.019
+        mu: -13.007626024022
         sigma: 2.0
-#    - name: young_modulus
-#      type: null
-#      options:
-#        mu: 60e9
-#        sigma: 20e9
-#        mu: 24.817
-#        sigma: 1.0
-#    - name: young_modulus_1
-#      type: null
-#      options:
-#        mu: 30e9
-#        sigma: 20e9
-#        mu: 24.124
-#        sigma: 1.0
+
   observe_points:
-    #- V1 # HGT1-5
+    - V1 # HGT1-5
     #- V2 # HGT1-4
-    - H1 # HGT2-4
+    #- H1 # HGT2-4
     #- H2 # HGT2-3
   conductivity_observe_points:
-    - V01_cond
-    - V02_cond
-    - H01_cond
-    - H02_cond
+    []
+
+  noise_model:
+    # "time_grid" and "range" defined automatically
+    # pressure observations
+    - corr_length: 0
+      std: 25
+      cov_type: default
+
+  samplers_list: # stages of the sampling process (here MH, DAMH-SMU, DAMH)
+    # stage 1: initial surrogate model created during MH sampling
+    - type: MH # sampling algorithm (MH/DAMH)
+      surrogate_is_updated: true
+      proposal_std: 0.02
+      #  max_samples: 2
+      #  time_limit: 180 # 10800 # 3600 # 14400
+      max_samples: 50000
+      time_limit: 57600 # 10800 # 3600 # 14400
+
+  surrogate:
+    # polynominal surrogate model requires different parameters
+    #    surrogate_type: poly
+    #    surr_updater_parameters:
+    #      max_degree: 5
+    surrogate_type: rbf # type of surrogate model (rbf/poly)
+    surr_solver_parameters:
+      kernel_type: 0
+    surr_updater_parameters:
+      expensive: false
+      kernel_type: 0
+      no_keep: 20000
 
 geometry:
   # base of the mesh file name
@@ -222,8 +217,7 @@ hm_params:
         # -ksp_type cg -pc_type hypre -pc_hypre_type boomeramg  -pc_hypre_boomeramg_coarsen_type HMIS -pc_hypre_boomeramg_strong_threshold 0.5  -ksp_monitor
 
 measured_data_dir: /storage/liberec3-tul/home/pavel_exner/workspace/endorse/tests/test_data/tsx_measured_data
+#measured_data_dir: /home/paulie/Workspace/endorse/tests/test_data/tsx_measured_data
 copy_files:
-  - config.yaml
   - *config_bayes
-  - flow123d_simulation.py
   - A04_hm_tmpl.yaml

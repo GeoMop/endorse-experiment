@@ -26,3 +26,7 @@ importlib-resources
 pandas
 attrs
 
+# bayes
+statsmodels
+ruamel.yaml     # ruamel keeps comments and order when loading and dumping yaml around
+

@@ -142,9 +142,13 @@ hm_params:
     init_stress_z: 14e6
 
     # non-linear permeability
-    perm_kr: 8e-20
-    perm_km: 8e-17
-    perm_beta: 4e-7
+#    perm_kr: 8e-20
+#    perm_km: 8e-17
+#    perm_beta: 4e-7
+#    perm_gamma: 3e-7
+    perm_k0: 8e-20
+    perm_kr: 8e-17
+    perm_delta: 4e-7
     perm_gamma: 3e-7
 
     conductivity_a: 0

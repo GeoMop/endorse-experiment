@@ -4,12 +4,10 @@ import pytest
 
 import endorse.Bukov2.bukov_common as bcommon
 from endorse import common
-from endorse.Bukov2 import boreholes, sa_problem, mock, sobol_fast
-from multiprocessing import Pool
+from endorse.Bukov2 import mock
+from endorse.common import sobol_fast
 
-from endorse.sa import sample, analyze
 import numpy as np
-import endorse.Bukov2.optimize as optimize
 import endorse.Bukov2.optimize_packers as opt_pack
 
 from pathlib import Path
