@@ -271,7 +271,7 @@ def export_vtk_bh_chamber_set(cfg_file, bh_pk_ids, fname, plot=False):
         sign = 1
         if cfg.boreholes.active_zk.invert_xy:
             sign = -1
-        return sign*(idx - bh_set.boreholes[bi].start[0]) / bh_set.boreholes[bi].unit_direction[0]
+        return (sign*idx - bh_set.boreholes[bi].start[0]) / bh_set.boreholes[bi].unit_direction[0]
     def single_bh_packers(bi, bid, pids):
         packers = [
             t_for_idx(bi, all_packer_coords[bi, pi, 0])
@@ -287,9 +287,8 @@ def export_vtk_bh_chamber_set(cfg_file, bh_pk_ids, fname, plot=False):
     for (bi,(bid,pids)) in zip(bh_indices,bh_pk_ids):
         bh_workdir = process_bh.borehole_dir(workdir, bi)
         index, data = process_bh._chamber_sensitivities(bh_workdir, cfg, chambers=None)
-        i_begin = [pids[i]-2 for i in range(len(pids)-1)]
-        i_end = [pids[i]+2 for i in range(len(pids)-1)]
-        print(pids)
+        i_begin = [pids[i] for i in range(len(pids)-1)]
+        i_end = [pids[i+1]-2 for i in range(len(pids)-1)]
         bh_sens = [data[index[i_begin, i_end],:] for i_begin, i_end in zip(i_begin, i_end)]
         #bh_sens.insert(0, data[-1, :])
         sensitivities.append(bh_sens)

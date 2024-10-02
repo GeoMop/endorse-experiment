@@ -4,7 +4,7 @@ script_dir = Path(__file__).absolute().parent
 
 
 # borehole ID must be defined in subset in the Bukov2_mesh.yaml file
-# indices * 0.5 m = offset of chamber centers from borehole head
+# indices * 0.5 m = offset of chamber beginnings from borehole head + last index corresponds to borehole end + 1 m
 
 # boreholes around ZK5-1J
 """
@@ -27,8 +27,8 @@ for i, cfg in enumerate(configs):
 # boreholes around ZK5-1S
 configs = \
 [[
-    ('L-11+67-17', [4,9,14,18]),
-    ('L -9+40+14', [5,12,18,26]),
+    ('L-11+67-17', [5,10,15,20]),
+    ('L -9+40+14', [6,13,19,28]),
 ],
 ]
 cfg_file = script_dir / "PE_01_02_zk40/Bukov2_mesh.yaml"
