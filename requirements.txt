@@ -15,7 +15,7 @@ cartopy     #  For stereographic projection
 # endorse
 pyvista
 pyyaml
-pyyaml-include
+pyyaml-include==1.3.2
 matplotlib
 scipy
 seaborn
