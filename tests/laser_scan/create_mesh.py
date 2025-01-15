@@ -67,7 +67,7 @@ def make_geometry(factory, cfg_geom:'dotdict', cfg_mesh:'dotdict', tunnel_laser_
 
     print("Get final geometry objects.")
     # GET box minus tunnel volume
-    box_fr.drop(tunnel_fr)
+    box_fr.dt_drop(tunnel_fr)
     box_fr.set_region("box")
     print("box minus tunnel:\n", box_fr)
 
@@ -80,7 +80,7 @@ def make_geometry(factory, cfg_geom:'dotdict', cfg_mesh:'dotdict', tunnel_laser_
     tunnel_heads = b_tunnel_fr.dt_intersection(box_sides_fr)
     print("tunnel_heads: \n", tunnel_heads)
     # get rid of tunnel head surfaces
-    box_sides_no_tunnel.drop(tunnel_heads)
+    box_sides_no_tunnel.dt_drop(tunnel_heads)
     print("box_sides_no_tunnel: \n", box_sides_no_tunnel)
 
     # factory.show()
@@ -89,7 +89,7 @@ def make_geometry(factory, cfg_geom:'dotdict', cfg_mesh:'dotdict', tunnel_laser_
     print("Get tunnel walls.")
     tunnel_walls = b_box_fr.dt_intersection(b_tunnel_fr) # = b_tunnel_fr
     assert tunnel_walls.dt_equal(b_tunnel_fr)
-    tunnel_walls.drop(tunnel_heads)
+    tunnel_walls.dt_drop(tunnel_heads)
     tunnel_walls.set_region(".tunnel")
 
     # SET final geometry set
@@ -171,7 +171,7 @@ def make_gmsh(cfg:'dotdict'):
     # gopt.Tolerance = 0.0001
     # gopt.ToleranceBoolean = 0.001
 
-    tunnel_laser_scan = factory.importShapes(boundary_brep_filename, highestDimOnly=False)
+    tunnel_laser_scan = factory.import_shapes(boundary_brep_filename, highestDimOnly=False)
 
     # print(tunnel_laser_scan.dim_tags)
     # print(tunnel_laser_scan.regions)
