@@ -1,12 +1,11 @@
 import math
-import os, sys
-import yaml
+import os
 import numpy as np
-from typing import Tuple, List
+
 from endorse import common
 
-from bgem.gmsh import gmsh, options, gmsh_io, heal_mesh
-import gmsh as gmsh_api
+from bgem.gmsh import gmsh, options, gmsh_io, heal_mesh, field
+# import gmsh as gmsh_api
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -34,6 +33,61 @@ def box_with_sides(factory, dimensions):
     factory.synchronize()
     return box, sides
 
+def tunnel_center_line(factory, tunnel_dict):
+    length = tunnel_dict.length
+    height = tunnel_dict.height
+    center_line = factory.line([0, 0, 0], [0, length, 0]).translate([0, -length / 2, height / 2])
+    return center_line
+
+def tunnel_lines(factory, geom_dict):
+    """
+    Coordinate system:
+    X - in direction of laterals, positive in direction to L6
+    Y - in direction of the L5 main shaft, all positive, increasing towards L5 end
+    Z - vertical, positive upwards
+
+    :param factory:
+    :param geom_dict:
+    :return:
+    """
+    lateral_length = geom_dict.lateral_tunnel.length
+    main_width = geom_dict.main_tunnel.width
+    laterals_distance = geom_dict.laterals_distance
+
+    # main_tunnel_line = tunnel_center_line(factory, geom_dict.main_tunnel)
+
+    lateral_cfg = common.dotdict(geom_dict.lateral_tunnel)
+    lateral_cfg.length = lateral_cfg.length + main_width / 2
+    laterals_pos = [
+        [(main_width/2 + lateral_length)/2, -laterals_distance/2, 0],
+        [-(main_width/2 + lateral_length) / 2, laterals_distance / 2, 0]
+    ]
+    lateral_lines = [
+        tunnel_center_line(factory, lateral_cfg)
+            .rotate([0,0,1], math.pi / 2)
+            .translate(shift)
+        for shift in laterals_pos
+        ]
+
+    factory.synchronize()
+    return lateral_lines
+
+
+def line_distance_edz(factory: "GeometryOCC", line, cfg_mesh: "dotdict") -> field.Field:
+    """
+    :param factory:
+    :param line:
+    :param cfg_mesh:
+    :return:
+    """
+    cfg = cfg_mesh
+    line_length = line.get_mass()
+    n_sampling = int(line_length / cfg.r_inner)
+    dist = field.distance(line, sampling = n_sampling)
+    inner = field.geometric(dist, a=(cfg.r_inner, cfg.h_inner), b=(cfg.r_outer, cfg.h_outer))
+    outer = field.polynomial(dist, a=(cfg.r_outer, cfg.h_outer), b=(cfg.r_inf, cfg.h_inf), q=cfg.q_outer)
+    return field.maximum(inner, outer)
+
 
 def make_geometry(factory, cfg_geom:'dotdict', cfg_mesh:'dotdict', tunnel_laser_scan):
     box, box_sides_dict = box_with_sides(factory, cfg_geom.box_dimensions)
@@ -43,6 +97,12 @@ def make_geometry(factory, cfg_geom:'dotdict', cfg_mesh:'dotdict', tunnel_laser_
     # print(tunnel_laser_scan.regions)
     print("box:\n", box.dim_tags)
     print("box_sides_group:\n", box_sides_group)
+
+    # create center lines for meshing field
+    tunnel_center_lines = tunnel_lines(factory, cfg_geom)
+    print("tunnel_center_lines:\n", tunnel_center_lines)
+
+    # factory.show()
 
     tunnel = tunnel_laser_scan.split_by_dimension()[3]
     tunnel_boundary = tunnel_laser_scan.split_by_dimension()[2]
@@ -102,10 +162,17 @@ def make_geometry(factory, cfg_geom:'dotdict', cfg_mesh:'dotdict', tunnel_laser_
     geometry_set.append(tunnel_walls)
     geometry_set.append(box_fr)
 
+    # create refinement fields around drifts
+    line_fields = (line_distance_edz(factory, line, cfg_mesh.line_refinement)
+                   for line in tunnel_center_lines)
+    common_field = field.minimum(*line_fields)
+    factory.set_mesh_step_field(common_field)
+
     print("Finalize geometry...")
     geometry_final = factory.group(*geometry_set)
     factory.synchronize()
-    factory.keep_only(geometry_final)
+    # need to keep tunnel lines due to refinement fields
+    factory.keep_only(geometry_final, *tunnel_center_lines)
     factory.synchronize()
     factory.remove_duplicate_entities()
     factory.synchronize()
