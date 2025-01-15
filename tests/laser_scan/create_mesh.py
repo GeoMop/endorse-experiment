@@ -185,7 +185,8 @@ def make_gmsh(cfg:'dotdict'):
     tunnel_group.translate(-np.array(cfg.geometry.center))
     # rotate
     oax = cfg.geometry.orig_x_axis
-    angle = math.atan(oax[0]/oax[1])
+    # add 180 degrees to reorient Y-axis to follow L5
+    angle = math.pi + math.atan(oax[0]/oax[1])
     tunnel_group.rotate(axis=[0,0,1], angle=angle)
     factory.synchronize()
 
