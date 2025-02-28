@@ -2,7 +2,7 @@ flow123d_version: 4.0.0
 problem: !Coupling_Sequential
   description: Model of tunnel surroundings relaxation after boring.
   mesh:
-    mesh_file: <mesh>
+    mesh_file: L5_mesh_6_healed.msh
     regions:
       - !Union
         name: .box_outer
@@ -10,13 +10,13 @@ problem: !Coupling_Sequential
   flow_equation: !Coupling_Iterative
     input_fields:
       - region: BULK
-        biot_alpha: <biot_coefficient>
-        fluid_density: <water_density>
+        biot_alpha: 0.2
+        fluid_density: 1000
     time:
-      end_time: <end_time>
+      end_time: 3650
       # common time unit cannot be used in field formulas
       common_time_unit: d
-      dt_limits: <dt_limits>
+      dt_limits: [[0, 100, 0], [100, 1, 1], [130, 2, 2], [140, 4, 4], [160, 8, 8], [200, 16, 3450]]
     iteration_parameter: 1 # affects convergence of HM coupling (defaults to 1, lower value sometimes helps)
     a_tol: 0
     r_tol: 1e-6
@@ -24,37 +24,37 @@ problem: !Coupling_Sequential
         user_fields:
           - name: stress_trace
             field: !FieldFormula
-              value: <init_stress_H>+<init_stress_h>+<init_stress_v>
+              value: 42e6+19e6+14e6
           - name: init_p
             field: !FieldFormula
-              value: <init_pressure>-z
+              value: 40-z
           - name: k0
             field: !FieldFormula
-              value: <perm_k0>
+              value: 3e-20
           - name: kr
             field: !FieldFormula
-              value: 1/<perm_eps>*k0
+              value: 1/33*k0
           - name: delta
-            field: <perm_delta>
+            field: 1e-16
           - name: gamma
-            field: <perm_gamma>
+            field: 6
           - name: stress_threshold
-            field: <perm_sigma_c>
+            field: 55e6
           - name: a # coefficient for nonhomogeneous conductivity (range: -1 to 1)
-            field: <conductivity_a>
+            field: 0
           - name: b # coefficient for nonhomogeneous conductivity (range: -1 to 1)
-            field: <conductivity_b>
+            field: 0
           - name: c # coefficient for nonhomogeneous conductivity (range: -1 to 1)
-            field: <conductivity_c>
+            field: 0
           - name: nonlin_cond
             field: !FieldFormula
-              value: <water_density>*9.81/0.001 * (kr + delta*exp( log((k0-kr)/delta) * mean_stress/(-stress_trace/3)))
+              value: 1000*9.81/0.001 * (kr + delta*exp( log((k0-kr)/delta) * mean_stress/(-stress_trace/3)))
           - name: bulk_modulus
             field: !FieldFormula
-              value: <young_modulus>/(3*(1-2*<poisson_ratio>))
+              value: 30e9/(3*(1-2*0.24))
           - name: beta_s
             field: !FieldFormula
-              value: (<biot_coefficient>-<porosity>)*(1-<biot_coefficient>)/bulk_modulus
+              value: (0.2-0.007)*(1-0.2)/bulk_modulus
           - name: excavation_north
             field: !FieldTimeFunction
               time_function:
@@ -81,9 +81,9 @@ problem: !Coupling_Sequential
                     value: [[$1]]
         nonlinear_solver:
           linear_solver: !Petsc
-            a_tol: <flow_solver__a_tol>
-            r_tol: <flow_solver__r_tol>
-            options: <flow_solver__options>
+            a_tol: 0
+            r_tol: 1e-12
+            options: -ksp_type cg -pc_type hypre -pc_hypre_type boomeramg
         input_fields:
           - region: BULK
             conductivity: !FieldFormula
@@ -94,7 +94,7 @@ problem: !Coupling_Sequential
 
             # https://en.wikipedia.org/wiki/Specific_storage
             storativity: !FieldFormula
-              value: <water_density>*9.81*(beta_s+<porosity>*<water_compressibility>)
+              value: 1000*9.81*(beta_s+0.007*5.1e-10)
             init_pressure: !FieldFormula
               value: init_p
 
@@ -117,7 +117,7 @@ problem: !Coupling_Sequential
               value: 0 if ((y>2.5 and y<8 and x<-2+minimum(0,excavation_north)) or (y>-8 and y<-2.5 and x>2+maximum(0,excavation_south))) else 1e3
 
         output:
-          times: <output_times>
+          times: [{'begin': 101.566666, 'step': 0.2, 'end': 102.666666}, {'begin': 103.334, 'step': 0.2, 'end': 104.434}, {'begin': 104.5597, 'step': 0.2, 'end': 105.6597}, {'begin': 107.5666666, 'step': 0.2, 'end': 109.666666}, {'begin': 110.2785, 'step': 0.2, 'end': 111.3785}, {'begin': 111.9104, 'step': 0.2, 'end': 113.0104}, {'begin': 115.5875, 'step': 0.2, 'end': 116.6875}, {'begin': 117.584, 'step': 0.2, 'end': 118.684}, {'begin': 123.3375, 'step': 0.2, 'end': 124.4375}, {'begin': 125.2854, 'step': 0.2, 'end': 126.3854}, {'begin': 129.2576, 'step': 0.2, 'end': 130}, 100, 101.666666, 103.434, 104.6597, 107.6666666, 108.666666, 110.3785, 112.0104, 115.6875, 117.684, 123.4375, 125.3854, 129.3576, 130]
           fields:
 #            - { field: conductivity, interpolation: P1_average }
 #            - piezo_head_p0
@@ -133,18 +133,18 @@ problem: !Coupling_Sequential
         user_fields:
           - name: a
             field: !FieldFormula # uhel mezi osou rozrazky (kolmici k L5) a hlavnim napetim ... 110=azimut L5, 200=azimut kolmice, kladny uhel proti smeru hodinovych rucicek
-              value: (200-<init_stress_azimuth>)*pi/180
+              value: (200-123)*pi/180
           - name: sx # initial stress in x direction (orthogonal to tunnel axis)
             field: !FieldFormula
-              value: <init_stress_H>*cos(a)**2 + <init_stress_h>*sin(a)**2
+              value: 42e6*cos(a)**2 + 19e6*sin(a)**2
           - name: sxy
             field: !FieldFormula
-              value: cos(a)*sin(a)*(<init_stress_H>-<init_stress_h>)
+              value: cos(a)*sin(a)*(42e6-19e6)
           - name: sy
             field: !FieldFormula
-              value: <init_stress_h>*cos(a)**2 + <init_stress_H>*sin(a)**2
+              value: 19e6*cos(a)**2 + 42e6*sin(a)**2
           - name: sz
-            field: <init_stress_v>
+            field: 14e6
           - name: excavation_north
             field: !FieldTimeFunction
               time_function:
@@ -174,7 +174,7 @@ problem: !Coupling_Sequential
           file: mechanics.pvd
           format: !vtk
         output:
-          times: <output_times>
+          times: [{'begin': 101.566666, 'step': 0.2, 'end': 102.666666}, {'begin': 103.334, 'step': 0.2, 'end': 104.434}, {'begin': 104.5597, 'step': 0.2, 'end': 105.6597}, {'begin': 107.5666666, 'step': 0.2, 'end': 109.666666}, {'begin': 110.2785, 'step': 0.2, 'end': 111.3785}, {'begin': 111.9104, 'step': 0.2, 'end': 113.0104}, {'begin': 115.5875, 'step': 0.2, 'end': 116.6875}, {'begin': 117.584, 'step': 0.2, 'end': 118.684}, {'begin': 123.3375, 'step': 0.2, 'end': 124.4375}, {'begin': 125.2854, 'step': 0.2, 'end': 126.3854}, {'begin': 129.2576, 'step': 0.2, 'end': 130}, 100, 101.666666, 103.434, 104.6597, 107.6666666, 108.666666, 110.3785, 112.0104, 115.6875, 117.684, 123.4375, 125.3854, 129.3576, 130]
           fields:
             - displacement
             - stress
@@ -183,13 +183,13 @@ problem: !Coupling_Sequential
             - initial_stress
             - region_id
         solver: !Petsc
-          a_tol: <mechanics_solver__a_tol>
-          r_tol: <mechanics_solver__r_tol>
-          options: <mechanics_solver__options>
+          a_tol: 0
+          r_tol: 1e-12
+          options: -ksp_type cg -pc_type hypre -pc_hypre_type boomeramg
         input_fields:
           - region: BULK
-            young_modulus: <young_modulus>
-            poisson_ratio: <poisson_ratio>
+            young_modulus: 30e9
+            poisson_ratio: 0.24
             initial_stress: !FieldFormula
               value: "[ [-sx, -sxy, 0],
                         [-sxy, -sy, 0],
